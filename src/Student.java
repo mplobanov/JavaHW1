@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -7,6 +8,8 @@ public class Student<Grade>  {
     private final ArrayList<Grade> grades;
 
     private Predicate<Grade> isGradeValid;
+
+    private final LinkedList<Runnable> cancelActions = new LinkedList<>();
 
     public Student(String name) throws StudentException {
         if (!name.matches("[A-Z][a-zA-Z]*")) {
@@ -45,7 +48,9 @@ public class Student<Grade>  {
         if (!name.matches("[A-Z][a-zA-Z]*")) {
             throw new StudentException("Incorrect name");
         }
+        String oldName = getName();
         this.name = name;
+        cancelActions.add(() -> {try { setName(oldName); } catch (Exception ignored) {}});
     }
 
     public void addGrade(Grade grade) throws StudentException {
@@ -53,6 +58,7 @@ public class Student<Grade>  {
             throw new StudentException("Incorrect grade");
         }
         grades.add(grade);
+        cancelActions.add(() -> grades.remove(grades.size() - 1));
     }
 
     public ArrayList<Grade> getGrades() {
@@ -60,7 +66,12 @@ public class Student<Grade>  {
     }
 
     public void removeGrade(int index) {
-        grades.remove(index);
+        Grade removedGrade = grades.remove(index);
+        cancelActions.add(() -> { grades.add(index, removedGrade);});
+    }
+
+    public void undo() {
+        cancelActions.pop().run();
     }
 
     @Override
